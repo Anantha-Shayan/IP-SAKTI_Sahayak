@@ -37,7 +37,7 @@ class SentenceTransformerEmbedder:
         self.model_revision = config.revision
 
     def encode(self, texts: list[str]) -> list[list[float]]:
-        vectors = self.model.encode(texts, batch_size=len(texts), normalize_embeddings=self.normalize, show_progress_bar=False)
+        vectors = self.model.encode(texts, batch_size=len(texts), normalize_embeddings=self.normalize, show_progress_bar=True)
         return [[float(x) for x in vec] for vec in vectors]
 
 
