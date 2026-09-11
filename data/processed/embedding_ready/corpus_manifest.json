@@ -1,0 +1,139 @@
+{
+  "processor_version": "1.0.0",
+  "corpus_id": "SIH26045",
+  "generated_at": "2026-09-11T06:46:07.651002+00:00",
+  "chunking_strategy": "legal-structure-paragraph-sentence-token",
+  "chunk_size": 600,
+  "chunk_overlap": 80,
+  "documents_total": 12,
+  "pages_total": 1095,
+  "chunks_total": 895,
+  "documents_successful": 11,
+  "documents_failed": 1,
+  "ocr_pages": 0,
+  "warnings": 40,
+  "critical_errors": 2,
+  "validation_status": "FAILED",
+  "documents": [
+    {
+      "document_id": "60e3b8a8e0147ca7d858ccd07708ed5b1b8804c095f9d13c2230e73322441c1c",
+      "filename": "Biological_Diversity_Amendment_Act_2023.pdf",
+      "relative_path": "Dataset_1/Biological_Diversity_Amendment_Act_2023.pdf",
+      "dataset_id": "Dataset_1",
+      "page_count": 15,
+      "chunk_count": 15,
+      "source_sha256": "03af902a2b3ea88b100b60cf59e7ae067fa25f9d445368b9078dce1ad8a53892",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "6b12a1df6f92bdad6d4cfd9972599c37bbd992b359db4114664756e2fa96be24",
+      "filename": "Patents_Act_1970_Updated.pdf",
+      "relative_path": "Dataset_1/Patents_Act_1970_Updated.pdf",
+      "dataset_id": "Dataset_1",
+      "page_count": 69,
+      "chunk_count": 88,
+      "source_sha256": "d57084888c69d70b16ed6a52a612363a526994203effa58880a26faaaa6e0678",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "ccdee736a0d56ae971fe418e31aec4b20ed959650ef6883286161efa3d99ca01",
+      "filename": "Trade_Marks_Act_1999.pdf",
+      "relative_path": "Dataset_1/Trade_Marks_Act_1999.pdf",
+      "dataset_id": "Dataset_1",
+      "page_count": 69,
+      "chunk_count": 88,
+      "source_sha256": "d57084888c69d70b16ed6a52a612363a526994203effa58880a26faaaa6e0678",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "9ad51c93afb6233acbcc25d6de28a01afbb05cc6d6e5d6825c92559987ea90de",
+      "filename": "2016DrugsandCosmeticsAct1940Rules1945.pdf",
+      "relative_path": "Dataset_2/2016DrugsandCosmeticsAct1940Rules1945.pdf",
+      "dataset_id": "Dataset_2",
+      "page_count": 635,
+      "chunk_count": 521,
+      "source_sha256": "62bc0d8fd5f9d0c6be90b2fb86f67f8ed5280ac719a038fbf9f26fc8aa5036bf",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "41ed1f2c1b4f5a9969632298dd7959474de7352695e1b1be397d0b43ad85ea60",
+      "filename": "CCPA_Notification.pdf",
+      "relative_path": "Dataset_2/CCPA_Notification.pdf",
+      "dataset_id": "Dataset_2",
+      "page_count": 11,
+      "chunk_count": 14,
+      "source_sha256": "d97e8ab663ebdab8b3e2139465013da14f65dead4fa3e3aa8023df8617fe32f1",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "f77d989f5d1923aac1dfbd6c48e1af96fb8fa8171dbcdfbf032cffe24f4ee92a",
+      "filename": "The_Drugs_And_Magic_Remedies_Objectionable_Advertisements_Act_1954.PDF",
+      "relative_path": "Dataset_2/The_Drugs_And_Magic_Remedies_Objectionable_Advertisements_Act_1954.PDF",
+      "dataset_id": "Dataset_2",
+      "page_count": 8,
+      "chunk_count": 5,
+      "source_sha256": "dfb1a21a7a72a5c09b96a80afc920bd89e987472ef8b5ebd5b025c264d99e657",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "507fea268f393da5ff5d2712d5c660dcfa6bbdc09e5830fdb2e2eb14200a45f4",
+      "filename": "API_Amendment_List_2023.pdf",
+      "relative_path": "Dataset_3_TK/API_Amendment_List_2023.pdf",
+      "dataset_id": "Dataset_3_TK",
+      "page_count": 5,
+      "chunk_count": 0,
+      "source_sha256": "247b79ebc01b129d62312894c6b01c5015844bd0e79501e6c9b3a0f1ebc10ab3",
+      "validation_status": "FAILED"
+    },
+    {
+      "document_id": "5834eccc84e1c454cc7a6c291b3a3ab4a49ab6af886c1c1ac24ffe4664a5204e",
+      "filename": "TK_Examination_Guidelines.pdf",
+      "relative_path": "Dataset_3_TK/TK_Examination_Guidelines.pdf",
+      "dataset_id": "Dataset_3_TK",
+      "page_count": 10,
+      "chunk_count": 8,
+      "source_sha256": "6e4945840b00a79f97d9e5d3d42962e0e30eb343f6b0d6a9bb7f0d5971e4652c",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "85456703aefce92b74c8ad3f2d30880c888b3e4fb33dd65902bb93fac29cfa39",
+      "filename": "Nagoya_Protocol_CBD.pdf",
+      "relative_path": "Dataset_4_International/Nagoya_Protocol_CBD.pdf",
+      "dataset_id": "Dataset_4_International",
+      "page_count": 15,
+      "chunk_count": 17,
+      "source_sha256": "cdbd496bd361317d3b7237124177974bebac4cc800cf1974896bc19234cce856",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "e1a7b3bb763c33fd3fb1ceebc6728f24b70a612da1835d0d5645a96268f1133c",
+      "filename": "WIPO_GRATK_Treaty_2024.pdf",
+      "relative_path": "Dataset_4_International/WIPO_GRATK_Treaty_2024.pdf",
+      "dataset_id": "Dataset_4_International",
+      "page_count": 10,
+      "chunk_count": 7,
+      "source_sha256": "1b898fd1a1655cd34a91060cbfa948d354eb99c0cee4a9ca83357b337c1e0f38",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "82b2781091b73b0d15c387638f686c9617b33ff3844110611044cd37f53d8c9b",
+      "filename": "IPO_Manual_Patent_Practice_Procedure.pdf",
+      "relative_path": "Dataset_5_CaseLaw/IPO_Manual_Patent_Practice_Procedure.pdf",
+      "dataset_id": "Dataset_5_CaseLaw",
+      "page_count": 174,
+      "chunk_count": 93,
+      "source_sha256": "73d52f8b8073d3d0699f5e99a321d0428646b7d3bb80fb51abebca6db9fbb311",
+      "validation_status": "PASS_WITH_WARNINGS"
+    },
+    {
+      "document_id": "9f34fdbb8ca8c6d8914f787a7669a50959bed27eaaa443600d5818b54924094b",
+      "filename": "WIPO_TK_Case_Studies_Digest.pdf",
+      "relative_path": "Dataset_5_CaseLaw/WIPO_TK_Case_Studies_Digest.pdf",
+      "dataset_id": "Dataset_5_CaseLaw",
+      "page_count": 74,
+      "chunk_count": 39,
+      "source_sha256": "af5728c4a51516febb19a08100d9d6863b131ce764c3937799c6aba6c370ef77",
+      "validation_status": "PASS_WITH_WARNINGS"
+    }
+  ]
+}

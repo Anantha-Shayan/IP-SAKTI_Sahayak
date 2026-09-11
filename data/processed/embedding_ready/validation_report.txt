@@ -1,0 +1,64 @@
+Validation status: FAILED
+CRITICAL: 2
+WARNING: 40
+INFO: 12
+
+CRITICAL:
+- [NO_CHUNKS] Dataset_3_TK/API_Amendment_List_2023.pdf: no chunks generated.
+- [CRITICAL_DOCUMENT_CONTENT_COLLISION] Dataset_1/Patents_Act_1970_Updated.pdf and Dataset_1/Trade_Marks_Act_1999.pdf share 100% identical extracted pages.
+
+WARNING:
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [OCR_NEEDED_BUT_DISABLED] Page 3 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 5 has inadequate extracted text. OCR is disabled.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [OCR_NEEDED_BUT_DISABLED] Page 1 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 2 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 3 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 4 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 5 has inadequate extracted text. OCR is disabled.
+- [EMPTY_PAGE_TEXT] Page 1 has no extracted text.
+- [EMPTY_PAGE_TEXT] Page 2 has no extracted text.
+- [EMPTY_PAGE_TEXT] Page 3 has no extracted text.
+- [EMPTY_PAGE_TEXT] Page 4 has no extracted text.
+- [EMPTY_PAGE_TEXT] Page 5 has no extracted text.
+- [EMPTY_PAGES] Dataset_3_TK/API_Amendment_List_2023.pdf: 5 pages have empty extracted text.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [OCR_NEEDED_BUT_DISABLED] Page 1 has inadequate extracted text. OCR is disabled.
+- [EMPTY_PAGE_TEXT] Page 1 has no extracted text.
+- [EMPTY_PAGES] Dataset_3_TK/TK_Examination_Guidelines.pdf: 1 pages have empty extracted text.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [PYMUPDF_UNAVAILABLE_POPPLER_FALLBACK] PyMuPDF is unavailable; extracted text using Poppler pdftotext fallback.
+- [OCR_NEEDED_BUT_DISABLED] Page 7 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 9 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 52 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 58 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 72 has inadequate extracted text. OCR is disabled.
+- [OCR_NEEDED_BUT_DISABLED] Page 73 has inadequate extracted text. OCR is disabled.
+- [EMPTY_PAGE_TEXT] Page 72 has no extracted text.
+- [EMPTY_PAGE_TEXT] Page 73 has no extracted text.
+- [EMPTY_PAGES] Dataset_5_CaseLaw/WIPO_TK_Case_Studies_Digest.pdf: 2 pages have empty extracted text.
+- [DUPLICATE_PDF_FILE] Duplicate PDF file hash shared by: Dataset_1/Patents_Act_1970_Updated.pdf, Dataset_1/Trade_Marks_Act_1999.pdf
+- [DUPLICATE_PAGE_WITHIN_DOCUMENT] Dataset_5_CaseLaw/WIPO_TK_Case_Studies_Digest.pdf: 2 pages share identical text.
+- [DUPLICATE_CHUNKS] 88 chunk text hashes are duplicated.
+
+INFO:
+- [DOCUMENT_PROCESSED] 15 pages extracted from Dataset_1/Biological_Diversity_Amendment_Act_2023.pdf.
+- [DOCUMENT_PROCESSED] 69 pages extracted from Dataset_1/Patents_Act_1970_Updated.pdf.
+- [DOCUMENT_PROCESSED] 69 pages extracted from Dataset_1/Trade_Marks_Act_1999.pdf.
+- [DOCUMENT_PROCESSED] 635 pages extracted from Dataset_2/2016DrugsandCosmeticsAct1940Rules1945.pdf.
+- [DOCUMENT_PROCESSED] 11 pages extracted from Dataset_2/CCPA_Notification.pdf.
+- [DOCUMENT_PROCESSED] 8 pages extracted from Dataset_2/The_Drugs_And_Magic_Remedies_Objectionable_Advertisements_Act_1954.PDF.
+- [DOCUMENT_PROCESSED] 5 pages extracted from Dataset_3_TK/API_Amendment_List_2023.pdf.
+- [DOCUMENT_PROCESSED] 10 pages extracted from Dataset_3_TK/TK_Examination_Guidelines.pdf.
+- [DOCUMENT_PROCESSED] 15 pages extracted from Dataset_4_International/Nagoya_Protocol_CBD.pdf.
+- [DOCUMENT_PROCESSED] 10 pages extracted from Dataset_4_International/WIPO_GRATK_Treaty_2024.pdf.
+- [DOCUMENT_PROCESSED] 174 pages extracted from Dataset_5_CaseLaw/IPO_Manual_Patent_Practice_Procedure.pdf.
+- [DOCUMENT_PROCESSED] 74 pages extracted from Dataset_5_CaseLaw/WIPO_TK_Case_Studies_Digest.pdf.
