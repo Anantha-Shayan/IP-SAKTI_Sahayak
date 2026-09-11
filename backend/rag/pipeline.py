@@ -62,10 +62,25 @@ class RAGPipeline:
             hybrid_top_k=hybrid_top_k or cfg.hybrid_top_k,
         )
 
+        # Step 2: Apply exact legal-reference boost
+        from backend.retrieval.filters import apply_exact_reference_boost
+        boosted_candidates = apply_exact_reference_boost(
+            analysis.original_query,
+            hybrid_results,
+            legal_references=analysis.legal_references,
+        )
+
         reranked = self.reranker.rerank(
             analysis.normalized_query,
-            hybrid_results,
+            boosted_candidates,
             top_k=reranker_top_k or 8,
+        )
+
+        # Re-apply exact reference boost after reranking to preserve statutory priority
+        reranked = apply_exact_reference_boost(
+            analysis.original_query,
+            reranked,
+            legal_references=analysis.legal_references,
         )
 
         return {
@@ -100,10 +115,25 @@ class RAGPipeline:
             hybrid_top_k=hybrid_top_k or cfg.hybrid_top_k,
         )
 
+        # Step 2: Apply exact legal-reference boost
+        from backend.retrieval.filters import apply_exact_reference_boost
+        boosted_candidates = apply_exact_reference_boost(
+            analysis.original_query,
+            hybrid_results,
+            legal_references=analysis.legal_references,
+        )
+
         reranked = self.reranker.rerank(
             analysis.normalized_query,
-            hybrid_results,
+            boosted_candidates,
             top_k=reranker_top_k or 8,
+        )
+
+        # Re-apply exact reference boost after reranking to preserve statutory priority
+        reranked = apply_exact_reference_boost(
+            analysis.original_query,
+            reranked,
+            legal_references=analysis.legal_references,
         )
 
         evidence_pack = build_evidence_pack(

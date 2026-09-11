@@ -206,16 +206,34 @@ class Generator(Protocol):
 class DummyGenerator:
     """Passthrough generator for testing — does NOT provide real answers."""
 
-    def __init__(self, abstention_message: str = "") -> None:
-        self.abstention_message = abstention_message
+    def __init__(self, abstention_message: str = "", grounding_min_score: float = 0.15) -> None:
+        self.abstention_message = (
+            abstention_message
+            or "I could not find sufficient evidence in the indexed corpus to answer this question reliably."
+        )
+        self.grounding_min_score = grounding_min_score
 
     def generate(self, query: str, evidence_pack: EvidencePack) -> RAGResponse:
         if not evidence_pack.chunks:
             return RAGResponse(
-                answer=self.abstention_message or "No evidence available.",
+                answer=self.abstention_message,
                 confidence="none",
                 grounded=False,
             )
+
+        top_score = max(
+            (c.rerank_score for c in evidence_pack.chunks if c.rerank_score is not None),
+            default=None,
+        )
+        if top_score is not None and top_score < self.grounding_min_score:
+            return RAGResponse(
+                answer=self.abstention_message,
+                confidence="low",
+                grounded=False,
+                citations=[c.to_dict() for c in evidence_pack.citations],
+                evidence=[c.to_dict() for c in evidence_pack.chunks],
+            )
+
         # Just echo evidence summaries
         summary_parts = []
         for chunk in evidence_pack.chunks:

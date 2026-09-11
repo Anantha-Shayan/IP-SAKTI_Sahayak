@@ -51,10 +51,10 @@ EMBEDDING_BATCH_SIZE=32
 EMBEDDING_NORMALIZE=true
 ```
 
-Start local Qdrant:
+Start services (Qdrant + backend):
 
 ```bash
-docker compose -f docker-compose.qdrant.yml up -d
+docker compose up -d
 ```
 
 Check that it responds:
@@ -77,6 +77,14 @@ Validate existing indexes:
 ```bash
 .venv/bin/python -m backend.indexing.cli validate
 ```
+
+3. Run Demo Query:
+```bash
+    curl -X POST http://localhost:8000/api/query \
+      -H "Content-Type: application/json" \
+      -d '{"query": "What does Section 3(1)(a) of the Biological Diversity Act say?"}'
+```
+
 
 Artifacts are written to:
 
