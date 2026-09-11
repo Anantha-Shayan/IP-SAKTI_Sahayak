@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 # ── project imports ──────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ from backend.retrieval.models import RetrievedChunk
 from backend.rag.pipeline import RAGPipeline
 from backend.rag.generation import (
     GeminiGenerator,
+    GroqGenerator,
     DummyGenerator,
     RAGResponse,
 )
@@ -121,24 +123,65 @@ def _build_pipeline() -> tuple[RAGPipeline | None, list[str], dict[str, str]]:
         LOG.warning("Reranker fallback: %s", exc)
 
     # ── Generator ────────────────────────────────────────────────────────
-    api_key = gen_cfg.api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY")
-    if api_key:
-        generator = GeminiGenerator(
-            model=gen_cfg.model,
-            api_key=api_key,
-            temperature=gen_cfg.temperature,
-            max_tokens=gen_cfg.max_tokens,
-            grounding_min_score=gen_cfg.grounding_min_score,
-            abstention_message=gen_cfg.abstention_message,
-        )
-        mode["generator"] = f"gemini/{gen_cfg.model}"
+    provider = (gen_cfg.provider or "").strip().lower()
+    # prefer explicit config api_key, then common env vars, then provider-specific
+    api_key = gen_cfg.api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY")
+
+    if provider in ("google", "gemini", "g"):
+        if api_key:
+            generator = GeminiGenerator(
+                model=gen_cfg.model,
+                api_key=api_key,
+                temperature=gen_cfg.temperature,
+                max_tokens=gen_cfg.max_tokens,
+                grounding_min_score=gen_cfg.grounding_min_score,
+                abstention_message=gen_cfg.abstention_message,
+            )
+            mode["generator"] = f"gemini/{gen_cfg.model}"
+        else:
+            generator = DummyGenerator(
+                grounding_min_score=gen_cfg.grounding_min_score,
+                abstention_message=gen_cfg.abstention_message,
+            )
+            mode["generator"] = "dummy (no LLM_API_KEY)"
+            errors.append("No LLM API key — using dummy generator")
+    elif provider in ("groq", "groqai"):
+        if api_key:
+            generator = GroqGenerator(
+                model=gen_cfg.model,
+                api_key=api_key,
+                temperature=gen_cfg.temperature,
+                max_tokens=gen_cfg.max_tokens,
+                grounding_min_score=gen_cfg.grounding_min_score,
+                abstention_message=gen_cfg.abstention_message,
+            )
+            mode["generator"] = f"groq/{gen_cfg.model}"
+        else:
+            generator = DummyGenerator(
+                grounding_min_score=gen_cfg.grounding_min_score,
+                abstention_message=gen_cfg.abstention_message,
+            )
+            mode["generator"] = "dummy (no GROQ_API_KEY)"
+            errors.append("No GROQ API key — using dummy generator")
     else:
-        generator = DummyGenerator(
-            grounding_min_score=gen_cfg.grounding_min_score,
-            abstention_message=gen_cfg.abstention_message,
-        )
-        mode["generator"] = "dummy (no LLM_API_KEY)"
-        errors.append("No LLM API key — using dummy generator")
+        # default behavior: try Gemini first, otherwise dummy
+        if api_key:
+            generator = GeminiGenerator(
+                model=gen_cfg.model,
+                api_key=api_key,
+                temperature=gen_cfg.temperature,
+                max_tokens=gen_cfg.max_tokens,
+                grounding_min_score=gen_cfg.grounding_min_score,
+                abstention_message=gen_cfg.abstention_message,
+            )
+            mode["generator"] = f"gemini/{gen_cfg.model}"
+        else:
+            generator = DummyGenerator(
+                grounding_min_score=gen_cfg.grounding_min_score,
+                abstention_message=gen_cfg.abstention_message,
+            )
+            mode["generator"] = "dummy (no LLM_API_KEY)"
+            errors.append("No LLM API key — using dummy generator")
 
     pipeline = RAGPipeline(
         retriever=hybrid,
@@ -189,6 +232,18 @@ def create_app() -> FastAPI:
         title="IP-SAKTI Sahayak",
         description="RAG-based legal assistant for Indian IP & Traditional Knowledge law",
         version="0.1.0-demo",
+    )
+
+    cors_origins = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in cors_origins if o.strip()],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.on_event("startup")

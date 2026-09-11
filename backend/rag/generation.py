@@ -343,3 +343,117 @@ class GeminiGenerator:
             parts = candidates[0].get("content", {}).get("parts", [])
             return "".join(p.get("text", "") for p in parts)
         return "No response generated."
+
+
+class GroqGenerator:
+    """Minimal Groq API generator wrapper.
+
+    This implementation uses a configurable `GROQ_API_URL` (or a sensible
+    default) and an API key provided via `GROQ_API_KEY` or `LLM_API_KEY`.
+    The request/response JSON shape may need adjustment to match the
+    production Groq API; keep this as a reasonable starting point.
+    """
+
+    def __init__(
+        self,
+        model: str = "groq-large",
+        api_key: str | None = None,
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+        grounding_min_score: float = 0.15,
+        abstention_message: str = "",
+    ) -> None:
+        self.model = model
+        # Prefer explicit key, then generic LLM_API_KEY, then GROQ_API_KEY
+        self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GROQ_API_KEY") or ""
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.grounding_min_score = grounding_min_score
+        self.abstention_message = (
+            abstention_message
+            or "I could not find sufficient evidence in the indexed corpus to answer this question reliably."
+        )
+
+    def generate(self, query: str, evidence_pack: EvidencePack) -> RAGResponse:
+        if not evidence_pack.chunks:
+            return RAGResponse(answer=self.abstention_message, confidence="none", grounded=False)
+
+        top_score = max(
+            (c.rerank_score for c in evidence_pack.chunks if c.rerank_score is not None),
+            default=None,
+        )
+        if top_score is not None and top_score < self.grounding_min_score:
+            return RAGResponse(
+                answer=self.abstention_message,
+                confidence="low",
+                grounded=False,
+                citations=[c.to_dict() for c in evidence_pack.citations],
+                evidence=[c.to_dict() for c in evidence_pack.chunks],
+            )
+
+        if not self.api_key:
+            LOG.warning("No GROQ API key set — falling back to dummy generation")
+            return DummyGenerator(self.abstention_message).generate(query, evidence_pack)
+
+        user_prompt = _build_user_prompt(query, evidence_pack)
+        try:
+            answer_text = self._call_groq(user_prompt)
+        except Exception as exc:
+            LOG.error("Groq API call failed: %s", exc)
+            return RAGResponse(
+                answer=f"LLM generation failed: {exc}",
+                confidence="error",
+                grounded=False,
+                citations=[c.to_dict() for c in evidence_pack.citations],
+                evidence=[c.to_dict() for c in evidence_pack.chunks],
+            )
+
+        return RAGResponse(
+            answer=answer_text,
+            citations=[c.to_dict() for c in evidence_pack.citations],
+            evidence=[c.to_dict() for c in evidence_pack.chunks],
+            confidence="high" if (top_score and top_score > 0.5) else "medium",
+            grounded=True,
+        )
+
+    def _call_groq(self, user_prompt: str) -> str:
+        """Call a configurable Groq REST endpoint.
+
+        The default URL is `https://api.groq.ai/v1/models/{model}:generate` but
+        can be overridden with `GROQ_API_URL`.
+        """
+        base = os.getenv("GROQ_API_URL")
+        if not base:
+            base = f"https://api.groq.ai/v1/models/{self.model}:generate"
+
+        body = {
+            "input": user_prompt,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+        data = json.dumps(body).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+        req = urllib.request.Request(base, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+
+        # Best-effort extraction: try common response shapes
+        if isinstance(result, dict):
+            # Try typical fields
+            for key in ("output", "choices", "data", "result"):
+                if key in result:
+                    val = result[key]
+                    if isinstance(val, str):
+                        return val
+                    if isinstance(val, list) and val:
+                        first = val[0]
+                        if isinstance(first, str):
+                            return first
+                        if isinstance(first, dict) and "text" in first:
+                            return first["text"]
+                        if isinstance(first, dict) and "output" in first:
+                            return first["output"]
+        return "No response generated."

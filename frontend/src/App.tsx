@@ -9,189 +9,129 @@ import {
 import { FooterBar } from './components/FooterBar';
 import { MessageSquare, X } from 'lucide-react';
 import {
-  processUserQuestion,
-  resolveFullPipeline
-} from './services/architecturePipeline';
+  mapCitationsForUi,
+  mapRagResponseToArchitectureState,
+  queryRag,
+  RagApiError,
+} from './services/ragApi';
+
+const INITIAL_BABA_GREETING =
+  'Namaste! I am Baba Ji, your guide to Indian IP and traditional knowledge law. Ask by voice or text — I will search the indexed corpus and answer with citations.';
 
 export function App() {
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  // Spoken text to feed into BabaStage TTS
-  const [currentSpokenText, setCurrentSpokenText] = useState<string>(
-    "That is an important question. Under Section 3(p) of the Indian Patents Act, traditional knowledge per se is non-patentable. To evaluate your claim against classical Samhitas, can you clarify: what exact modification have you made — an unexpected synergistic ratio, a novel extraction process, or a novel drug delivery carrier?"
-  );
+  const [currentSpokenText, setCurrentSpokenText] = useState<string>(INITIAL_BABA_GREETING);
 
-  // Initial conversation starts with Baba Ji asking clarification per system architecture
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      sender: 'user',
-      text: 'Can I patent a modified version of an Ayurvedic formulation?',
-      time: '10:24 AM',
-    },
-    {
-      id: '2',
+      id: 'welcome',
       sender: 'baba',
-      text: "That is an important question. Under Section 3(p) of the Indian Patents Act, traditional knowledge per se is non-patentable. To evaluate your claim against classical Samhitas, can you clarify: what exact modification have you made — an unexpected synergistic ratio, a novel extraction process, or a novel drug delivery carrier?",
-      time: '10:24 AM',
-      isClarification: true,
+      text: INITIAL_BABA_GREETING,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
 
-  // Active clarification requested by Baba Ji according to architecture
-  const [activeClarification, setActiveClarification] = useState<{
-    question: string;
-    chips: string[];
-  } | null>({
-    question: 'What exact modification have you made to the classical formulation?',
-    chips: [
-      'Synergistic Herbal Ratio (Section 3(e))',
-      'Novel Drug Delivery / Nano-carrier (Section 3(d))',
-      'Standardized Bioactive Extraction Method',
-    ],
-  });
-
-  // Track the 6. End-to-End System Architecture state
   const [architectureState, setArchitectureState] = useState<ArchitectureStateInfo>({
-    step: 'clarification',
-    detectedEntities: ['Curcuma longa (Haridra)', 'Azadirachta indica (Nimba)'],
-    formulationCategory: 'Classical Ayurvedic Formulation (Base)',
-    legalRegime: 'India (IPA 1970 · Section 3(p) Evaluation)',
-    confidenceScore: '92%',
-    confidenceTier: 'High',
+    step: 'understanding',
+    detectedEntities: ['Awaiting your question'],
+    formulationCategory: '—',
+    legalRegime: 'Indexed IP & traditional-knowledge corpus',
+    confidenceScore: '—',
+    confidenceTier: '—',
   });
 
-  // Central User Submission Handler: handles speech-to-text, clarification chip taps, or typed prompts
-  const handleUserSubmit = (userText: string) => {
+  const handleUserSubmit = async (userText: string) => {
+    const trimmed = userText.trim();
+    if (!trimmed) return;
+
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const userMsg: Message = {
       id: Date.now().toString(),
       sender: 'user',
-      text: userText,
+      text: trimmed,
       time: timeStr,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setIsProcessing(true);
+    setArchitectureState((prev) => ({
+      ...prev,
+      step: 'retrieval',
+      confidenceScore: '…',
+      confidenceTier: '…',
+    }));
 
-    setTimeout(() => {
-      if (activeClarification) {
-        // User is answering Baba Ji's clarifying question
-        const result = resolveFullPipeline(userText, architectureState.detectedEntities, userText);
+    try {
+      const response = await queryRag(trimmed);
+      const citations = mapCitationsForUi(response.citations ?? [], response.evidence ?? []);
 
-        const babaMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          sender: 'baba',
-          text: result.immediateAnswer,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          citations: result.retrievedCitations,
-        };
+      const babaMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        sender: 'baba',
+        text: response.answer,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        citations: citations.length > 0 ? citations : undefined,
+        grounded: response.grounded,
+      };
 
-        setMessages((prev) => [...prev, babaMsg]);
-        setActiveClarification(null);
-        setCurrentSpokenText(result.immediateAnswer);
-        setArchitectureState({
-          step: 'complete',
-          detectedEntities: result.extractedEntities,
-          formulationCategory: result.formulationCategory,
-          legalRegime: result.legalRegime,
-          confidenceScore: result.confidenceScore,
-          confidenceTier: result.confidenceTier,
-        });
-        setIsProcessing(false);
-      } else {
-        // User asks a new formulation question
-        const result = processUserQuestion(userText);
+      setMessages((prev) => [...prev, babaMsg]);
+      setCurrentSpokenText(response.answer);
+      setArchitectureState(mapRagResponseToArchitectureState(response));
+    } catch (err) {
+      const message =
+        err instanceof RagApiError
+          ? err.message
+          : 'Something went wrong while searching the knowledge base.';
 
-        if (result.requiresClarification && result.clarifyingQuestion && result.clarificationChips) {
-          // Baba Ji asks a clarifying question according to the architecture
-          const babaMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            sender: 'baba',
-            text: result.clarifyingQuestion,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isClarification: true,
-          };
+      const babaMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        sender: 'baba',
+        text: message,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        grounded: false,
+      };
 
-          setMessages((prev) => [...prev, babaMsg]);
-          setActiveClarification({
-            question: 'What exact modification have you made to the formulation?',
-            chips: result.clarificationChips,
-          });
-          setCurrentSpokenText(result.clarifyingQuestion);
-          setArchitectureState({
-            step: 'clarification',
-            detectedEntities: result.extractedEntities,
-            formulationCategory: result.formulationCategory,
-            legalRegime: result.legalRegime,
-            confidenceScore: result.confidenceScore,
-            confidenceTier: result.confidenceTier,
-          });
-          setIsProcessing(false);
-        } else {
-          // Complete answer with citations
-          const babaMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            sender: 'baba',
-            text: result.immediateAnswer || '',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            citations: result.retrievedCitations,
-          };
-
-          setMessages((prev) => [...prev, babaMsg]);
-          setActiveClarification(null);
-          if (result.immediateAnswer) {
-            setCurrentSpokenText(result.immediateAnswer);
-          }
-          setArchitectureState({
-            step: 'complete',
-            detectedEntities: result.extractedEntities,
-            formulationCategory: result.formulationCategory,
-            legalRegime: result.legalRegime,
-            confidenceScore: result.confidenceScore,
-            confidenceTier: result.confidenceTier,
-          });
-          setIsProcessing(false);
-        }
-      }
-    }, 700);
+      setMessages((prev) => [...prev, babaMsg]);
+      setArchitectureState((prev) => ({
+        ...prev,
+        step: 'validation',
+        confidenceScore: '—',
+        confidenceTier: 'Error',
+      }));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0B0E14] text-slate-100 overflow-hidden font-sans select-none">
-      {/* Top System Navigation Bar (From Mockup) */}
       <Navbar currentJurisdiction="India (IPA 1970 & Section 3(p))" />
 
-      {/* Main Workspace Split View */}
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-        {/* Left Side: Ayurvedic Scholar Stage & Voice Control Bar */}
         <BabaStage
           onUserSubmit={handleUserSubmit}
           onSpeakingChange={setIsSpeaking}
           isSpeaking={isSpeaking}
-          activeClarification={activeClarification}
-          onAnswerClarification={(chip) => handleUserSubmit(chip)}
+          activeClarification={null}
           currentSpokenText={currentSpokenText}
           isProcessing={isProcessing}
         />
 
-        {/* Right Side: Conversation & Legal Analysis Panel (Desktop) */}
         <div className="hidden lg:block h-full">
           <ConversationAnalysisPanel
             messages={messages}
             onSendQuery={handleUserSubmit}
             isSpeaking={isSpeaking}
             isProcessing={isProcessing}
-            activeClarification={activeClarification}
-            onSelectClarificationChip={(chip) => handleUserSubmit(chip)}
+            activeClarification={null}
             architectureState={architectureState}
           />
         </div>
 
-        {/* Mobile Toggle Floating Button for Analysis Panel */}
         <div className="lg:hidden absolute bottom-14 right-4 z-30">
           <button
             onClick={() => setIsMobilePanelOpen(!isMobilePanelOpen)}
@@ -202,7 +142,6 @@ export function App() {
           </button>
         </div>
 
-        {/* Mobile Bottom-Sheet Overlay for Analysis Panel */}
         {isMobilePanelOpen && (
           <div className="lg:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex flex-col justify-end">
             <div className="bg-[#0E131F] border-t border-white/15 rounded-t-2xl h-[85vh] flex flex-col shadow-2xl relative overflow-hidden">
@@ -223,8 +162,7 @@ export function App() {
                   onSendQuery={handleUserSubmit}
                   isSpeaking={isSpeaking}
                   isProcessing={isProcessing}
-                  activeClarification={activeClarification}
-                  onSelectClarificationChip={(chip) => handleUserSubmit(chip)}
+                  activeClarification={null}
                   architectureState={architectureState}
                 />
               </div>
@@ -233,7 +171,6 @@ export function App() {
         )}
       </main>
 
-      {/* Bottom Footer Bar (From Mockup) */}
       <FooterBar />
     </div>
   );

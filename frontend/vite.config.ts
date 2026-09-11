@@ -57,6 +57,8 @@ function neuralTtsPlugin(): Plugin {
   };
 }
 
+const backendTarget = process.env.VITE_API_URL || 'http://localhost:8000';
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -64,4 +66,11 @@ export default defineConfig({
     tailwindcss(),
     neuralTtsPlugin(),
   ],
+  server: {
+    proxy: {
+      '/api/query': { target: backendTarget, changeOrigin: true },
+      '/api/retrieve': { target: backendTarget, changeOrigin: true },
+      '/health': { target: backendTarget, changeOrigin: true },
+    },
+  },
 });

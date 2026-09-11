@@ -2,6 +2,8 @@ PyMuPDF>=1.24
 pytest>=8
 sentence-transformers>=3
 qdrant-client>=1.12
+fastapi>=0.110.0
+uvicorn>=0.28.0
 
 # OCR
 Pillow>=10

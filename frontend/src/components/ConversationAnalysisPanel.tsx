@@ -16,6 +16,7 @@ export interface Message {
   text: string;
   time: string;
   isClarification?: boolean;
+  grounded?: boolean;
   citations?: Array<{ title: string; authority: string; section: string; snippet: string }>;
 }
 
@@ -122,6 +123,11 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
                       Clarification
                     </span>
                   )}
+                  {msg.grounded === false && (
+                    <span className="bg-slate-500/20 text-slate-300 border border-slate-500/40 text-[8.5px] px-1 rounded font-semibold uppercase">
+                      Insufficient evidence
+                    </span>
+                  )}
                   {isSpeaking && (
                     <div className="flex items-center space-x-0.5 text-indigo-400">
                       <span className="w-0.5 h-2 bg-indigo-400 rounded-full animate-wave-1" />
@@ -131,7 +137,13 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
                   )}
                   <span className="text-[9px] text-slate-400 ml-auto">{msg.time}</span>
                 </div>
-                <div className="max-w-[95%] bg-[#182032] border border-white/10 rounded-xl rounded-tl-xs p-2.5 text-xs text-slate-200 shadow-md leading-relaxed space-y-2">
+                <div
+                  className={`max-w-[95%] border rounded-xl rounded-tl-xs p-2.5 text-xs shadow-md leading-relaxed space-y-2 ${
+                    msg.grounded === false
+                      ? 'bg-slate-900/80 border-amber-500/30 text-slate-300'
+                      : 'bg-[#182032] border-white/10 text-slate-200'
+                  }`}
+                >
                   <p>{msg.text}</p>
 
                   {/* Render inline retrieved citations if present on answer */}
@@ -213,7 +225,7 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
                   : isSpeaking
                   ? 'Baba Ji Speaking...'
                   : isProcessing
-                  ? 'Processing Architecture Pipeline...'
+                  ? 'Searching knowledge base…'
                   : 'Voice Active (Push to Talk)'}
               </span>
             </div>

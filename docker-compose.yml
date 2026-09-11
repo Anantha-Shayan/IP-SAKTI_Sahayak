@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   qdrant:
     image: qdrant/qdrant:latest
@@ -9,11 +7,9 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # healthcheck removed because the qdrant image in this environment
+    # does not include 'curl' and the exec fails; rely on container logs
+    # or external checks instead.
 
   backend:
     build:
@@ -29,10 +25,25 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_MODE=local
       - PYTHONPATH=/app
+      - HF_HOME=/cache/huggingface
+      - TRANSFORMERS_CACHE=/cache/huggingface
+      # Optional: set a Groq API key to enable generator functionality.
+      # You can set GROQ_API_KEY in the .env file or here. If not set,
+      # the app will fall back to a dummy generator.
+      - GROQ_API_KEY
+      - GROQ_API_URL
     working_dir: /app
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     volumes:
-      - ./:/app:cached
-      - ./data/processed:/app/data/processed:cached
+      - type: bind
+        source: .
+        target: /app
+        consistency: cached
+      - type: bind
+        source: ./data/processed
+        target: /app/data/processed
+        consistency: cached
+      - /home/anantha/.cache/huggingface:/cache/huggingface:z
     depends_on:
       - qdrant
     restart: unless-stopped
