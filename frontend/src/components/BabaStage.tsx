@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
   MicOff,
@@ -113,7 +113,17 @@ export const BabaStage: React.FC<BabaStageProps> = ({
   };
 
   // React to parent changing spoken text
+  const hasMountedRef = useRef(false);
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      // Skip auto-speaking the initial greeting: no user gesture has
+      // happened yet on page load, and browsers block audio.play() (and
+      // usually speechSynthesis too) until one occurs. The greeting still
+      // shows as text in the bubble below — it just isn't spoken aloud
+      // until the person actually interacts (mic tap, sending a message).
+      hasMountedRef.current = true;
+      return;
+    }
     if (currentSpokenText && currentSpokenText !== spokenText) {
       speakText(currentSpokenText);
     }

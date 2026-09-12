@@ -29,6 +29,8 @@ class TTSService {
   private animFrameId: number | null = null;
   private isSpeaking = false;
   private generation = 0;
+  private pendingRetry: { text: string; options: PlaySpeechOptions } | null = null;
+  private gestureListenerAttached = false;
 
   public getSpeakingState(): boolean {
     return this.isSpeaking;
@@ -49,6 +51,26 @@ class TTSService {
     } catch (err) {
       console.warn('[TTS Service] Failed to unlock audio context', err);
     }
+
+    // If a play() call was blocked earlier because no user gesture had
+    // happened yet, this gesture is our chance to retry it — this call
+    // itself came from a real click/tap/keypress.
+    if (this.pendingRetry) {
+      const retry = this.pendingRetry;
+      this.pendingRetry = null;
+      void this.playSpeech(retry.text, retry.options);
+    }
+  }
+
+  // Listen once for the very first real interaction anywhere on the page so
+  // autoplay-blocked speech (e.g. a greeting queued before any click) can
+  // be retried automatically instead of staying silent forever.
+  private ensureGestureListener(): void {
+    if (this.gestureListenerAttached || typeof window === 'undefined') return;
+    this.gestureListenerAttached = true;
+    const unlock = () => this.unlockAudio();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
   }
 
   // Abort and cleanly stop any existing playback
@@ -128,6 +150,7 @@ class TTSService {
     // 1. Immediately cancel any running or pending speech
     this.stopSpeech();
     const myGen = ++this.generation;
+    this.ensureGestureListener();
 
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -254,6 +277,17 @@ class TTSService {
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') {
         return; // Normal cancellation on user interaction
+      }
+      if ((err as Error)?.name === 'NotAllowedError') {
+        // The browser blocked playback because no user gesture has
+        // happened yet on this page (e.g. an auto-spoken greeting on
+        // load). The browser's speech-synthesis fallback would be
+        // blocked for the exact same reason, so retrying it here is
+        // pointless — queue this speech and replay it the moment the
+        // person performs their first real interaction.
+        console.warn('[TTS Service] Playback blocked pending user interaction — will retry on first click/keypress.');
+        this.pendingRetry = { text: trimmed, options };
+        return;
       }
       console.warn('[TTS Service] Neural TTS error, falling back to browser speech synthesis:', err);
       onError?.(err);

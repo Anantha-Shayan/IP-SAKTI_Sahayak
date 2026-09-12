@@ -6,6 +6,10 @@ fastapi>=0.110.0
 python-multipart>=0.0.9
 uvicorn>=0.28.0
 
+# Local Speech-to-Text fallback (used when the browser's Web Speech API
+# can't reach Google's speech servers — see backend/api/stt.py)
+faster-whisper>=1.0.0
+
 # OCR
 Pillow>=10
 pytesseract>=0.3.10

@@ -5,11 +5,14 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install minimal build deps for some Python packages
+# Install minimal build deps for some Python packages, plus ffmpeg for
+# decoding browser-recorded audio (webm/opus) in the local Whisper STT
+# fallback endpoint (backend/api/stt.py).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     curl \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifest and install
