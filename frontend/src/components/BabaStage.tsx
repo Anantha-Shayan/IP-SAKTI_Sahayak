@@ -17,11 +17,13 @@ import {
 } from 'lucide-react';
 import { useSTT } from '../voice/useSTT';
 import { ttsService } from '../services/ttsService';
+import { sanitizeAnswer } from '../utils/sanitizeAnswer';
 import type { BabaSpeechState } from '../baba/BabaModel';
 
 interface BabaStageProps {
   onUserSubmit?: (userText: string) => void;
   onSpeakingChange?: (isSpeaking: boolean) => void;
+  onListeningChange?: (isListening: boolean) => void;
   isSpeaking?: boolean;
   activeClarification?: {
     question: string;
@@ -35,6 +37,7 @@ interface BabaStageProps {
 export const BabaStage: React.FC<BabaStageProps> = ({
   onUserSubmit,
   onSpeakingChange,
+  onListeningChange,
   activeClarification,
   onAnswerClarification,
   currentSpokenText,
@@ -48,6 +51,7 @@ export const BabaStage: React.FC<BabaStageProps> = ({
   const [amplitude, setAmplitude] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [dismissedSttError, setDismissedSttError] = useState<string | null>(null);
 
   // Sync speaking state with parent
   const updateSpeakingState = (speaking: boolean) => {
@@ -70,7 +74,8 @@ export const BabaStage: React.FC<BabaStageProps> = ({
   }, [isProcessing, speechState]);
 
   // Primary Neural Speech Playback: Single Audio Session, Zero Jitter
-  const speakText = (text: string) => {
+  const speakText = (rawText: string) => {
+    const text = sanitizeAnswer(rawText);
     setSpokenText(text);
 
     if (isMuted) {
@@ -133,8 +138,24 @@ export const BabaStage: React.FC<BabaStageProps> = ({
     },
   });
 
+  // Surface the real mic-listening state to the parent so other UI (e.g. the
+  // Conversation & Analysis panel) reflects it instead of showing a status
+  // that's permanently out of sync with the mic.
+  useEffect(() => {
+    onListeningChange?.(isListening);
+  }, [isListening, onListeningChange]);
+
+  // A fresh recognition error should be shown again even if the person
+  // previously dismissed an earlier one.
+  useEffect(() => {
+    if (sttError) {
+      setDismissedSttError(null);
+    }
+  }, [sttError]);
+
   // Handle Push-to-Talk Mic Button
   const handleMicButtonClick = () => {
+    ttsService.unlockAudio();
     // 1. If Baba is currently speaking: interrupt immediately and start listening
     if (isSpeakingLocal || speechState === 'SPEAKING') {
       stopSpeaking();
@@ -256,7 +277,7 @@ export const BabaStage: React.FC<BabaStageProps> = ({
             </span>
             <div className="flex items-center space-x-1">
               <button
-                onClick={() => speakText(spokenText)}
+                onClick={() => { ttsService.unlockAudio(); speakText(spokenText); }}
                 className="p-1 rounded-md hover:text-white hover:bg-white/10 text-slate-400 transition-colors cursor-pointer"
                 title="Replay Voice"
               >
@@ -264,6 +285,7 @@ export const BabaStage: React.FC<BabaStageProps> = ({
               </button>
               <button
                 onClick={() => {
+                  ttsService.unlockAudio();
                   const nextMuted = !isMuted;
                   setIsMuted(nextMuted);
                   if (nextMuted) {
@@ -376,16 +398,22 @@ export const BabaStage: React.FC<BabaStageProps> = ({
       )}
 
       {/* Fallback One-Click Prompt Chips if mic error occurs */}
-      {sttError && (
-        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4 pointer-events-auto">
-          <div className="bg-[#0B0E14]/95 backdrop-blur-2xl border border-amber-500/40 rounded-2xl p-3 shadow-2xl space-y-2 text-white">
-            <div className="flex items-center justify-between text-xs text-amber-300 font-medium">
-              <span>{sttError}</span>
-              <button onClick={() => {}} className="text-slate-400 hover:text-white">
+      {sttError && sttError !== dismissedSttError && (
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4 pointer-events-auto animate-fade-in">
+          <div className="bg-[#0B0E14]/95 backdrop-blur-2xl border border-amber-500/40 rounded-2xl p-3.5 shadow-2xl space-y-2.5 text-white">
+            <div className="flex items-start justify-between gap-2 pb-2 border-b border-white/10">
+              <span className="text-xs text-amber-300 font-medium leading-snug">{sttError}</span>
+              <button
+                onClick={() => setDismissedSttError(sttError)}
+                className="shrink-0 p-0.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Dismiss"
+              >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="text-[10px] text-slate-300">Click to ask by voice:</div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wide font-medium">
+              Or ask by tapping a question:
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {[
                 'Can I patent a modified Ayurvedic formulation?',
@@ -494,6 +522,7 @@ export const BabaStage: React.FC<BabaStageProps> = ({
           <div className="flex items-center space-x-2 pl-3 border-l border-white/10 text-slate-300">
             <button
               onClick={() => {
+                ttsService.unlockAudio();
                 const nextMuted = !isMuted;
                 setIsMuted(nextMuted);
                 if (nextMuted) {
@@ -506,7 +535,7 @@ export const BabaStage: React.FC<BabaStageProps> = ({
               {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
             </button>
             <button
-              onClick={() => speakText(spokenText)}
+              onClick={() => { ttsService.unlockAudio(); speakText(spokenText); }}
               className="p-2 rounded-full hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
               title="Replay Baba Ji Spoken Voice"
             >

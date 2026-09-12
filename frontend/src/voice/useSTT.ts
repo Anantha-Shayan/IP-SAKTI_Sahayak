@@ -54,10 +54,152 @@ export const useSTT = (options: UseSTTOptions = {}) => {
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState<boolean>(true);
+  const [googleReachable, setGoogleReachable] = useState<boolean | null>(null);
+  const [usingLocalSTT, setUsingLocalSTT] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onFinalResultRef = useRef(onFinalResult);
   onFinalResultRef.current = onFinalResult;
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const attemptLocalFallbackRef = useRef<(() => void) | null>(null);
+
+  const startLocalRecording = useCallback(async () => {
+    try {
+      setError(null);
+      setTranscript('');
+      setInterimTranscript('🎤 Recording locally (offline mode)...');
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+      
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      
+      recorder.onstop = async () => {
+        // Clean up stream
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioBlob.size < 1000) {
+          setError('No speech was detected. Please try speaking again.');
+          setInterimTranscript('');
+          setIsListening(false);
+          return;
+        }
+        
+        setInterimTranscript('Processing speech locally...');
+        
+        try {
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'recording.webm');
+          formData.append('lang', lang);
+          
+          const response = await fetch('/api/stt', {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Local STT server responded with ${response.status}`);
+          }
+          
+          const result = await response.json();
+          const text = (result.transcript || '').trim();
+          
+          if (text) {
+            setTranscript(text);
+            setInterimTranscript('');
+            onFinalResultRef.current?.(text);
+          } else {
+            setError('No speech was detected. Please try speaking again.');
+            setInterimTranscript('');
+          }
+        } catch (fetchErr) {
+          console.warn('[STT] Local fallback fetch error:', fetchErr);
+          setError(
+            'Voice input is currently unavailable (both online and local). ' +
+            'Please type your question instead.'
+          );
+          setInterimTranscript('');
+        }
+        
+        setIsListening(false);
+      };
+      
+      recorder.start();
+      setIsListening(true);
+      setUsingLocalSTT(true);
+    } catch (micErr) {
+      console.warn('[STT] Local recording failed:', micErr);
+      setError(
+        'Voice input is currently unavailable. ' +
+        'Please type your question instead.'
+      );
+      setIsListening(false);
+    }
+  }, [lang]);
+
+  const stopLocalRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setUsingLocalSTT(false);
+  }, []);
+
+  // Wire up the fallback trigger
+  useEffect(() => {
+    attemptLocalFallbackRef.current = () => {
+      // Auto-start local recording when browser STT fails with 'network'
+      startLocalRecording();
+    };
+  }, [startLocalRecording]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Check if we're on a secure context (required for Web Speech API)
+    if (!window.isSecureContext) {
+      console.warn('[STT] Not a secure context:', window.location.origin,
+        '— Web Speech API requires https:// or http://localhost');
+    }
+
+    // Lightweight reachability probe for Google's speech servers
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    fetch('https://www.google.com/generate_204', {
+      method: 'HEAD',
+      mode: 'no-cors',
+      signal: controller.signal,
+    })
+      .then(() => {
+        clearTimeout(timeoutId);
+        setGoogleReachable(true);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        setGoogleReachable(false);
+        console.warn('[STT] Google speech servers appear unreachable — local fallback will be used');
+      });
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -72,7 +214,7 @@ export const useSTT = (options: UseSTTOptions = {}) => {
 
     try {
       const recognition = new SpeechRecognitionClass();
-      recognition.continuous = false; // Capture one complete thought/question
+      recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = lang;
 
@@ -108,13 +250,26 @@ export const useSTT = (options: UseSTTOptions = {}) => {
       };
 
       recognition.onerror = (event) => {
-        console.warn('SpeechRecognition error:', event.error);
+        console.warn('SpeechRecognition error:', event.error, '| navigator.onLine:', navigator.onLine);
         if (event.error === 'no-speech') {
           setError('No speech was detected. Please try speaking again.');
         } else if (event.error === 'not-allowed') {
           setError('Microphone permission denied. Please allow mic access in your browser settings.');
+        } else if (event.error === 'network') {
+          console.warn(
+            '[STT] Network error — origin:', window.location.origin,
+            '| onLine:', navigator.onLine,
+            '| Likely cause: browser cannot reach Google speech servers (firewall, no internet, or non-https origin)'
+          );
+          setError(
+            'Voice input needs an internet connection to Google\'s speech service — ' +
+            'this network/browser can\'t reach it right now. ' +
+            'Falling back to local speech recognition...'
+          );
+          // Attempt local STT fallback
+          attemptLocalFallbackRef.current?.();
         } else {
-          setError(`Speech recognition notice: ${event.error}`);
+          setError(`Speech recognition error: ${event.error}. Please use text input or try again.`);
         }
         setIsListening(false);
       };
@@ -140,20 +295,32 @@ export const useSTT = (options: UseSTTOptions = {}) => {
     };
   }, [lang]);
 
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, []);
+
   const startListening = useCallback(() => {
     setError(null);
     setTranscript('');
     setInterimTranscript('');
-
-    if (!recognitionRef.current) {
-      setError('Speech recognition is not available in this browser. Please use text input or Chrome.');
+    
+    // If browser speech recognition isn't available or Google is unreachable,
+    // go directly to local recording fallback
+    if (!recognitionRef.current || googleReachable === false) {
+      startLocalRecording();
       return;
     }
-
+    
     try {
       recognitionRef.current.start();
     } catch (err: unknown) {
-      // If already started, restart
       console.warn('Recognition start exception, attempting reset:', err);
       try {
         recognitionRef.current.abort();
@@ -164,9 +331,13 @@ export const useSTT = (options: UseSTTOptions = {}) => {
         // ignore
       }
     }
-  }, []);
+  }, [googleReachable, startLocalRecording]);
 
   const stopListening = useCallback(() => {
+    if (usingLocalSTT) {
+      stopLocalRecording();
+      return;
+    }
     if (recognitionRef.current && isListening) {
       try {
         recognitionRef.current.stop();
@@ -175,7 +346,7 @@ export const useSTT = (options: UseSTTOptions = {}) => {
       }
     }
     setIsListening(false);
-  }, [isListening]);
+  }, [isListening, usingLocalSTT, stopLocalRecording]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
@@ -192,5 +363,7 @@ export const useSTT = (options: UseSTTOptions = {}) => {
     startListening,
     stopListening,
     resetTranscript,
+    usingLocalSTT,
+    googleReachable,
   };
 };

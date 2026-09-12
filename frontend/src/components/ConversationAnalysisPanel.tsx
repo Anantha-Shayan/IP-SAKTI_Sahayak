@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   MessageSquare,
   Mic,
@@ -17,7 +17,13 @@ export interface Message {
   time: string;
   isClarification?: boolean;
   grounded?: boolean;
-  citations?: Array<{ title: string; authority: string; section: string; snippet: string }>;
+  citations?: Array<{
+    citationId?: string;
+    title: string;
+    authority: string;
+    section: string;
+    snippet: string;
+  }>;
 }
 
 export interface ArchitectureStateInfo {
@@ -61,6 +67,13 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
   },
 }) => {
   const [inputVal, setInputVal] = useState('');
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep the conversation pinned to the latest message instead of leaving
+  // new replies scrolled out of view below the fold.
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages.length, activeClarification]);
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -105,7 +118,7 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
                   <span>·</span>
                   <span>{msg.time}</span>
                 </div>
-                <div className="max-w-[90%] bg-gradient-to-r from-[#3B4FD8] to-[#6366F1] text-white rounded-xl rounded-tr-xs px-3 py-2 text-xs shadow-md leading-relaxed">
+                <div className="max-w-[90%] bg-gradient-to-r from-[#3B4FD8] to-[#6366F1] text-white rounded-2xl rounded-tr-md px-3 py-2 text-xs shadow-md leading-relaxed break-words">
                   {msg.text}
                 </div>
               </div>
@@ -138,28 +151,51 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
                   <span className="text-[9px] text-slate-400 ml-auto">{msg.time}</span>
                 </div>
                 <div
-                  className={`max-w-[95%] border rounded-xl rounded-tl-xs p-2.5 text-xs shadow-md leading-relaxed space-y-2 ${
+                  className={`max-w-[95%] w-full border rounded-2xl rounded-tl-md p-2.5 text-xs shadow-md leading-relaxed space-y-2 ${
                     msg.grounded === false
                       ? 'bg-slate-900/80 border-amber-500/30 text-slate-300'
                       : 'bg-[#182032] border-white/10 text-slate-200'
                   }`}
                 >
-                  <p>{msg.text}</p>
+                  <p className="whitespace-pre-wrap break-words">{msg.text}</p>
 
                   {/* Render inline retrieved citations if present on answer */}
                   {msg.citations && msg.citations.length > 0 && (
                     <div className="pt-2 border-t border-white/10 space-y-1.5">
                       <div className="flex items-center space-x-1 text-[9.5px] text-[#E5A93C] font-semibold uppercase tracking-wider">
-                        <BookOpen className="w-3 h-3" />
+                        <BookOpen className="w-3 h-3 shrink-0" />
                         <span>Authoritative Citations & Prior Art</span>
                       </div>
                       {msg.citations.map((c, i) => (
-                        <div key={i} className="bg-black/30 rounded-lg p-1.5 border border-white/5 text-[10px] space-y-0.5">
-                          <div className="text-white font-medium flex items-center justify-between">
-                            <span>{c.title}</span>
-                            <span className="text-slate-400 font-normal text-[9px]">{c.authority}</span>
+                        <div
+                          key={i}
+                          className="bg-black/30 rounded-lg p-2 border border-white/5 text-[10px] space-y-1"
+                        >
+                          <div className="flex items-start gap-1.5">
+                            <span className="shrink-0 mt-0.5 bg-[#E5A93C]/15 text-[#E5A93C] font-mono text-[9px] font-semibold px-1 py-0.5 rounded">
+                              {c.citationId || `[${i + 1}]`}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div
+                                className="text-white font-medium truncate"
+                                title={c.title}
+                              >
+                                {c.title}
+                              </div>
+                              <div className="flex items-center gap-1 text-slate-400 text-[9px] mt-0.5">
+                                {c.section !== '—' && (
+                                  <span className="truncate" title={c.section}>
+                                    {c.section}
+                                  </span>
+                                )}
+                                {c.section !== '—' && c.authority && <span>·</span>}
+                                {c.authority && <span className="shrink-0">{c.authority}</span>}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-slate-400 italic text-[9.5px]">{c.snippet}</div>
+                          <div className="text-slate-400 italic text-[9.5px] line-clamp-3">
+                            {c.snippet}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -200,84 +236,44 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
           </div>
         )}
 
-        {/* Live Audio Status Card (STT Listening or TTS Speaking) */}
-        <div className="bg-[#121826] border border-white/10 rounded-xl p-2.5 shadow-md space-y-1.5">
-          <div className="flex items-center justify-between">
-            <div
-              className={`inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all ${
-                isListening
-                  ? 'bg-red-500/30 border border-red-400/50 text-red-200 animate-pulse'
-                  : isSpeaking
-                  ? 'bg-indigo-500/30 border border-indigo-400/50 text-indigo-200 animate-pulse'
-                  : isProcessing
-                  ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
-                  : 'bg-white/5 border border-white/10 text-slate-300'
-              }`}
-            >
-              <Mic
-                className={`w-2.5 h-2.5 ${
-                  isListening ? 'text-red-400' : isSpeaking ? 'text-indigo-400' : 'text-slate-400'
-                }`}
-              />
-              <span>
-                {isListening
-                  ? 'Listening to you speak...'
-                  : isSpeaking
-                  ? 'Baba Ji Speaking...'
-                  : isProcessing
-                  ? 'Searching knowledge base…'
-                  : 'Voice Active (Push to Talk)'}
-              </span>
-            </div>
-
-            {/* Visualizer Waveform */}
-            <div className="flex items-center space-x-0.5">
-              <span
-                className={`w-0.5 rounded-full ${isListening ? 'bg-red-400' : 'bg-indigo-400'} ${
-                  isListening || isSpeaking ? 'animate-wave-1 h-3.5' : 'h-1.5'
-                }`}
-              />
-              <span
-                className={`w-0.5 rounded-full ${isListening ? 'bg-red-400' : 'bg-purple-400'} ${
-                  isListening || isSpeaking ? 'animate-wave-2 h-4.5' : 'h-2'
-                }`}
-              />
-              <span
-                className={`w-0.5 rounded-full ${isListening ? 'bg-red-400' : 'bg-indigo-400'} ${
-                  isListening || isSpeaking ? 'animate-wave-3 h-5' : 'h-3'
-                }`}
-              />
-              <span
-                className={`w-0.5 rounded-full ${isListening ? 'bg-red-400' : 'bg-purple-400'} ${
-                  isListening || isSpeaking ? 'animate-wave-4 h-3.5' : 'h-1.5'
-                }`}
-              />
-              <span
-                className={`w-0.5 rounded-full ${isListening ? 'bg-red-400' : 'bg-indigo-400'} ${
-                  isListening || isSpeaking ? 'animate-wave-5 h-4' : 'h-2'
-                }`}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 pt-1 border-t border-white/5">
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isListening
-                  ? 'bg-red-400 animate-ping'
-                  : isSpeaking
-                  ? 'bg-emerald-400 animate-pulse'
-                  : 'bg-emerald-500'
+        {/* Live Audio Status Strip — single compact row, mirrors the mic state
+            shown on stage rather than duplicating it as a second full card. */}
+        <div
+          className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[10px] font-medium border transition-all ${
+            isListening
+              ? 'bg-red-500/15 border-red-400/40 text-red-200'
+              : isSpeaking
+              ? 'bg-indigo-500/15 border-indigo-400/40 text-indigo-200'
+              : isProcessing
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              : 'bg-[#121826] border-white/10 text-slate-400'
+          }`}
+        >
+          <div className="flex items-center space-x-1.5">
+            <Mic
+              className={`w-3 h-3 ${
+                isListening ? 'text-red-400' : isSpeaking ? 'text-indigo-400' : 'text-slate-500'
               }`}
             />
             <span>
               {isListening
-                ? 'Speak clearly into your microphone'
+                ? 'Listening to you speak…'
                 : isSpeaking
-                ? 'Baba Ji voice streaming aloud'
-                : 'Tap mic on stage to ask your question'}
+                ? 'Baba Ji is speaking…'
+                : isProcessing
+                ? 'Searching knowledge base…'
+                : 'Voice ready — tap the mic on stage'}
             </span>
           </div>
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              isListening
+                ? 'bg-red-400 animate-ping'
+                : isSpeaking
+                ? 'bg-indigo-400 animate-pulse'
+                : 'bg-emerald-500'
+            }`}
+          />
         </div>
 
         {/* 6. End-to-End System Architecture Pipeline Tracker */}
@@ -292,21 +288,30 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
 
           {/* Pipeline Stage Indicators */}
           <div className="space-y-1.5 text-[10px]">
-            <div className="flex items-center justify-between py-0.5 border-b border-white/5">
-              <span className="text-slate-400">1. Query Understanding & Entities:</span>
-              <span className="text-slate-200 font-medium truncate max-w-[170px]">
+            <div className="flex items-center justify-between py-0.5 border-b border-white/5 gap-2">
+              <span className="text-slate-400 shrink-0">1. Query Understanding & Entities:</span>
+              <span
+                className="text-slate-200 font-medium truncate max-w-[170px]"
+                title={architectureState.detectedEntities.join(', ')}
+              >
                 {architectureState.detectedEntities.join(', ') || 'Extracted'}
               </span>
             </div>
-            <div className="flex items-center justify-between py-0.5 border-b border-white/5">
-              <span className="text-slate-400">2. Formulation Classification:</span>
-              <span className="text-indigo-300 font-medium truncate max-w-[170px]">
+            <div className="flex items-center justify-between py-0.5 border-b border-white/5 gap-2">
+              <span className="text-slate-400 shrink-0">2. Formulation Classification:</span>
+              <span
+                className="text-indigo-300 font-medium truncate max-w-[170px]"
+                title={architectureState.formulationCategory}
+              >
                 {architectureState.formulationCategory}
               </span>
             </div>
-            <div className="flex items-center justify-between py-0.5 border-b border-white/5">
-              <span className="text-slate-400">3. Legal Regime Applied:</span>
-              <span className="text-amber-300 font-medium truncate max-w-[170px]">
+            <div className="flex items-center justify-between py-0.5 border-b border-white/5 gap-2">
+              <span className="text-slate-400 shrink-0">3. Legal Regime Applied:</span>
+              <span
+                className="text-amber-300 font-medium truncate max-w-[170px]"
+                title={architectureState.legalRegime}
+              >
                 {architectureState.legalRegime}
               </span>
             </div>
@@ -334,6 +339,8 @@ export const ConversationAnalysisPanel: React.FC<ConversationAnalysisPanelProps>
             />
           </div>
         </div>
+
+        <div ref={threadEndRef} />
       </div>
 
       {/* Bottom Text Prompt Input Field for Typing Option */}

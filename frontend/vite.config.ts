@@ -70,6 +70,7 @@ export default defineConfig({
     proxy: {
       '/api/query': { target: backendTarget, changeOrigin: true },
       '/api/retrieve': { target: backendTarget, changeOrigin: true },
+      '/api/stt': { target: backendTarget, changeOrigin: true },
       '/health': { target: backendTarget, changeOrigin: true },
     },
   },

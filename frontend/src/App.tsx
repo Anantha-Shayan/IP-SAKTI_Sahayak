@@ -21,6 +21,7 @@ const INITIAL_BABA_GREETING =
 export function App() {
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   const [currentSpokenText, setCurrentSpokenText] = useState<string>(INITIAL_BABA_GREETING);
@@ -115,6 +116,7 @@ export function App() {
         <BabaStage
           onUserSubmit={handleUserSubmit}
           onSpeakingChange={setIsSpeaking}
+          onListeningChange={setIsListening}
           isSpeaking={isSpeaking}
           activeClarification={null}
           currentSpokenText={currentSpokenText}
@@ -126,6 +128,7 @@ export function App() {
             messages={messages}
             onSendQuery={handleUserSubmit}
             isSpeaking={isSpeaking}
+            isListening={isListening}
             isProcessing={isProcessing}
             activeClarification={null}
             architectureState={architectureState}
@@ -161,6 +164,7 @@ export function App() {
                   messages={messages}
                   onSendQuery={handleUserSubmit}
                   isSpeaking={isSpeaking}
+                  isListening={isListening}
                   isProcessing={isProcessing}
                   activeClarification={null}
                   architectureState={architectureState}

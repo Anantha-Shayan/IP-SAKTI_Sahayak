@@ -28,9 +28,27 @@ class TTSService {
   private sourceNode: MediaElementAudioSourceNode | null = null;
   private animFrameId: number | null = null;
   private isSpeaking = false;
+  private generation = 0;
 
   public getSpeakingState(): boolean {
     return this.isSpeaking;
+  }
+
+  // Lazy init and unlock AudioContext on user gesture
+  public unlockAudio(): void {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) {
+        if (!this.audioContext || this.audioContext.state === 'closed') {
+          this.audioContext = new AudioCtx();
+        }
+        if (this.audioContext.state === 'suspended') {
+          this.audioContext.resume().catch(() => { /* ignore */ });
+        }
+      }
+    } catch (err) {
+      console.warn('[TTS Service] Failed to unlock audio context', err);
+    }
   }
 
   // Abort and cleanly stop any existing playback
@@ -52,6 +70,15 @@ class TTSService {
       this.currentAudio.onended = null;
       this.currentAudio.onerror = null;
       this.currentAudio = null;
+    }
+
+    if (this.sourceNode) {
+      try { this.sourceNode.disconnect(); } catch { /* ignore */ }
+      this.sourceNode = null;
+    }
+    if (this.analyser) {
+      try { this.analyser.disconnect(); } catch { /* ignore */ }
+      this.analyser = null;
     }
 
     if (this.currentObjectUrl) {
@@ -100,6 +127,7 @@ class TTSService {
 
     // 1. Immediately cancel any running or pending speech
     this.stopSpeech();
+    const myGen = ++this.generation;
 
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -127,7 +155,10 @@ class TTSService {
           throw new Error(`TTS server responded with status: ${response.status}`);
         }
 
+        if (myGen !== this.generation) return;
+
         const blob = await response.blob();
+        if (myGen !== this.generation) return;
         if (signal.aborted) return;
 
         this.currentObjectUrl = URL.createObjectURL(blob);
@@ -143,23 +174,22 @@ class TTSService {
 
       // 3. Configure Web Audio API Analyser for amplitude-driven Lip Sync
       try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (AudioCtx) {
-          if (!this.audioContext || this.audioContext.state === 'closed') {
-            this.audioContext = new AudioCtx();
-          }
+        if (this.audioContext) {
           if (this.audioContext.state === 'suspended') {
             await this.audioContext.resume();
+            if (myGen !== this.generation) return;
           }
 
-          this.analyser = this.audioContext.createAnalyser();
-          this.analyser.fftSize = 64;
-          this.analyser.smoothingTimeConstant = 0.5;
+          if (this.audioContext.state === 'running') {
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 64;
+            this.analyser.smoothingTimeConstant = 0.5;
 
-          // Connect audio element through analyser to speaker destination
-          this.sourceNode = this.audioContext.createMediaElementSource(audio);
-          this.sourceNode.connect(this.analyser);
-          this.analyser.connect(this.audioContext.destination);
+            // Connect audio element through analyser to speaker destination
+            this.sourceNode = this.audioContext.createMediaElementSource(audio);
+            this.sourceNode.connect(this.analyser);
+            this.analyser.connect(this.audioContext.destination);
+          }
         }
       } catch (audioCtxErr) {
         console.warn('[TTS Analyser] AudioContext hook notice (fallback to direct playback):', audioCtxErr);
@@ -219,6 +249,7 @@ class TTSService {
         this.fallbackSpeechSynthesis(trimmed, options);
       };
 
+      if (myGen !== this.generation) return;
       await audio.play();
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') {

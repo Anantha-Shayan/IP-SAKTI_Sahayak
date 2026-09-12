@@ -1,5 +1,6 @@
 import type { ArchitectureStateInfo } from '../components/ConversationAnalysisPanel';
 import type { Message } from '../components/ConversationAnalysisPanel';
+import { sanitizeAnswer } from '../utils/sanitizeAnswer';
 
 /** Matches backend RAGResponse.to_dict() */
 export interface RagQueryResponse {
@@ -82,13 +83,14 @@ export function mapCitationsForUi(
     const sectionParts = [c.section, c.article, c.chapter, c.rule, c.regulation].filter(Boolean);
     const sectionLabel = sectionParts.join(' · ') || '—';
 
-    const authorityParts = [
-      c.citation_id,
-      pageLabel(c.pdf_page_start, c.pdf_page_end),
-      c.source_path ? c.source_path.split('/').pop() : null,
-    ].filter(Boolean);
+    // Authority should describe *where in the document*, not repeat the
+    // document name a second time (the title already shows that) — the old
+    // version appended the source filename here too, causing the exact
+    // same long filename to render twice per citation card.
+    const authorityParts = [pageLabel(c.pdf_page_start, c.pdf_page_end)].filter(Boolean);
 
     return {
+      citationId: c.citation_id || `[${citations.indexOf(c) + 1}]`,
       title: c.document_name || 'Indexed source',
       authority: authorityParts.join(' · ') || 'Corpus provenance',
       section: sectionLabel,
@@ -189,7 +191,7 @@ export async function queryRag(query: string): Promise<RagQueryResponse> {
     if (typeof data.answer !== 'string') {
       throw new RagApiError('Unexpected response from knowledge service.');
     }
-    return data;
+    return { ...data, answer: sanitizeAnswer(data.answer) };
   } catch (err) {
     if (err instanceof RagApiError) {
       throw err;
