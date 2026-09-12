@@ -31,6 +31,7 @@ from backend.rag.generation import (
     RAGResponse,
 )
 from backend.reranking.base import make_reranker
+from backend.api.stt import router as stt_router
 
 LOG = logging.getLogger(__name__)
 
@@ -245,6 +246,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.include_router(stt_router)
 
     @app.on_event("startup")
     def startup():

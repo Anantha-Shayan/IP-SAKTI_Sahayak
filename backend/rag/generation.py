@@ -417,17 +417,24 @@ class GroqGenerator:
         )
 
     def _call_groq(self, user_prompt: str) -> str:
-        """Call a configurable Groq REST endpoint.
-
-        The default URL is `https://api.groq.ai/v1/models/{model}:generate` but
-        can be overridden with `GROQ_API_URL`.
-        """
+        """Call the Groq Chat Completions REST endpoint (api.groq.com)."""
         base = os.getenv("GROQ_API_URL")
-        if not base:
-            base = f"https://api.groq.ai/v1/models/{self.model}:generate"
+        # If no URL or pointing to old/invalid api.groq.ai domain, use official OpenAI-compatible endpoint
+        if not base or "api.groq.ai" in base:
+            base = "https://api.groq.com/openai/v1/chat/completions"
 
+        # Determine target model name
+        target_model = self.model
+        if not target_model or target_model in ("groq-large", "default", "gemini-2.0-flash"):
+            target_model = "llama-3.3-70b-versatile"
+
+        # OpenAI Chat Completions payload compatible with Groq
         body = {
-            "input": user_prompt,
+            "model": target_model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
@@ -435,25 +442,30 @@ class GroqGenerator:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
+            "User-Agent": "IP-SAKTI-Sahayak/1.0",
         }
         req = urllib.request.Request(base, data=data, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=60) as resp:
             result = json.loads(resp.read().decode("utf-8"))
 
-        # Best-effort extraction: try common response shapes
+        # Extract answer from response
         if isinstance(result, dict):
-            # Try typical fields
-            for key in ("output", "choices", "data", "result"):
+            # Standard OpenAI chat completions format: choices[0].message.content
+            choices = result.get("choices")
+            if isinstance(choices, list) and choices:
+                first = choices[0]
+                if isinstance(first, dict):
+                    msg = first.get("message")
+                    if isinstance(msg, dict) and "content" in msg:
+                        return msg["content"]
+                    if "text" in first and isinstance(first["text"], str):
+                        return first["text"]
+
+            for key in ("output", "data", "result"):
                 if key in result:
                     val = result[key]
                     if isinstance(val, str):
                         return val
-                    if isinstance(val, list) and val:
-                        first = val[0]
-                        if isinstance(first, str):
-                            return first
-                        if isinstance(first, dict) and "text" in first:
-                            return first["text"]
-                        if isinstance(first, dict) and "output" in first:
-                            return first["output"]
+                    if isinstance(val, list) and val and isinstance(val[0], str):
+                        return val[0]
         return "No response generated."
